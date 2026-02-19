@@ -1,0 +1,74 @@
+-- MY Health DATA - SQLite Schema
+-- app.db 자동 생성됨 (init_db.py 실행 시)
+
+PRAGMA foreign_keys = OFF;
+BEGIN TRANSACTION;
+
+CREATE TABLE IF NOT EXISTS users (
+    id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    mber_id     VARCHAR NOT NULL UNIQUE,
+    mber_password VARCHAR NOT NULL,
+    mber_nm     VARCHAR NOT NULL,
+    sexdstn     VARCHAR(1),           -- M or F
+    height      REAL,                 -- cm
+    weight      REAL,                 -- kg
+    brthdy      VARCHAR(10),          -- YYYY-MM-DD
+    step_target INTEGER DEFAULT 10000,
+    water_target INTEGER DEFAULT 2000,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS steps (
+    step_uid    INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    mber_id     VARCHAR NOT NULL REFERENCES users(mber_id),
+    step_cnt    INTEGER NOT NULL,
+    rcord_dt    VARCHAR(10) NOT NULL,   -- YYYY-MM-DD
+    regist_dt   DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS heart_rates (
+    heart_uid   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    mber_id     VARCHAR NOT NULL REFERENCES users(mber_id),
+    heart_rate  INTEGER NOT NULL,
+    rcord_dt    VARCHAR(10) NOT NULL,
+    regist_dt   DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS foods (
+    food_uid    INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    mber_id     VARCHAR NOT NULL REFERENCES users(mber_id),
+    food_knd_cd VARCHAR(1) NOT NULL,   -- B=Breakfast, L=Lunch, D=Dinner
+    file_nm     VARCHAR,
+    mask_nm     VARCHAR,
+    file_size   VARCHAR,
+    rcord_dt    VARCHAR(10) NOT NULL,
+    regist_dt   DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS waters (
+    water_uid   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    mber_id     VARCHAR NOT NULL REFERENCES users(mber_id),
+    water_cnt   INTEGER NOT NULL,      -- 100 or 250
+    rcord_dt    VARCHAR(10) NOT NULL,
+    regist_dt   DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS alarms (
+    alarm_uid   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    mber_id     VARCHAR NOT NULL REFERENCES users(mber_id),
+    alarm_knd_cd VARCHAR(1),           -- F=Food, W=Water, E=ETC
+    hour        INTEGER NOT NULL,
+    mnt         INTEGER NOT NULL,
+    use_yn      VARCHAR(1) DEFAULT 'Y',
+    regist_dt   DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS ix_steps_mber_id_rcord_dt ON steps(mber_id, rcord_dt);
+CREATE INDEX IF NOT EXISTS ix_heart_rates_mber_id_rcord_dt ON heart_rates(mber_id, rcord_dt);
+CREATE INDEX IF NOT EXISTS ix_foods_mber_id_rcord_dt ON foods(mber_id, rcord_dt);
+CREATE INDEX IF NOT EXISTS ix_waters_mber_id_rcord_dt ON waters(mber_id, rcord_dt);
+CREATE INDEX IF NOT EXISTS ix_alarms_mber_id ON alarms(mber_id);
+
+COMMIT TRANSACTION;
+PRAGMA foreign_keys = ON;
