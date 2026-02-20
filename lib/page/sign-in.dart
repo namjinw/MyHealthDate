@@ -19,14 +19,26 @@ class _Sign_inPageState extends State<Sign_inPage> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: appBar(),
-        body: Column(
-          children: [
-            const SizedBox(height: 40),
-            title(),
-            const SizedBox(height: 25),
-            form(),
-          ],
+        body: SizedBox.expand(
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    title(),
+                    const SizedBox(height: 25),
+                    form(),
+                  ],
+                ),
+              ),
+
+              bottomnav(),
+            ],
+          ),
         ),
       ),
     );
@@ -57,15 +69,15 @@ class _Sign_inPageState extends State<Sign_inPage> {
         children: [
           input(Icons.person, 'Username', username),
           const SizedBox(height: 10),
-          input(Icons.lock, 'Username', username),
+          input(Icons.lock, 'Password', password, password: true),
           const SizedBox(height: 20),
-          button(() {}, Colors.black.withAlpha(90), 'Sign in', radius: 12),
+          button(() {}, Color(0xff393838), 'Sign in', radius: 12),
         ],
       ),
     ),
   );
 
-  Widget input(icon, label, controller) => Container(
+  Widget input(icon, label, controller, {password = false}) => Container(
     height: 50,
     decoration: BoxDecoration(
       color: inputColor,
@@ -79,6 +91,7 @@ class _Sign_inPageState extends State<Sign_inPage> {
           child: TextFormField(
             cursorColor: Colors.black,
             maxLines: 1,
+            obscureText: password,
             style: const TextStyle(
               fontSize: 13,
               fontFamily: fonts,
@@ -98,29 +111,30 @@ class _Sign_inPageState extends State<Sign_inPage> {
     ),
   );
 
-  Widget button(VoidCallback ontap, color, text, {borderColor = Colors.transparent, double radius = 0}) => GestureDetector(
+  Widget button(VoidCallback ontap, color, text, {borderColor = Colors.transparent, double radius = 0, bottom = false}) => GestureDetector(
     onTap: ontap,
     child: Container(
       width: sizew(context),
-      height: 55,
+      height: bottom == true ? 45 : 50,
       decoration: BoxDecoration(
-        color: Color(0xff393838),
-        boxShadow: [
+        color: color,
+        boxShadow: bottom == true ? [] : [
           BoxShadow(
-            color: color,
+            color: Colors.black.withAlpha(90),
             blurRadius: 3,
             offset: const Offset(0, 3),
           ),
         ],
         borderRadius: BorderRadius.circular(radius),
+        border: Border.all(width: 1, color: borderColor)
       ),
       child: Center(
         child: Text(
           text,
           style: TextStyle(
-            fontSize: 13,
-            color: background,
-            fontWeight: FontWeight.w700,
+            fontSize: bottom == true ? 17 : 13,
+            color: color == background ? Colors.black : background,
+            fontWeight: FontWeight.w800,
             fontFamily: fonts,
           ),
         ),
@@ -146,5 +160,26 @@ class _Sign_inPageState extends State<Sign_inPage> {
       ],
     ),
     backgroundColor: Colors.black,
+  );
+
+  Widget bottomnav() => Positioned(
+    left: 0,
+    right: 0,
+    bottom: 0,
+    child: Container(
+      height: 220,
+      decoration: BoxDecoration(color: inputColor),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 50.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            button(() {}, Colors.black, 'Sign Up', bottom: true),
+            const SizedBox(height: 20),
+            button(() {}, background, 'Password Reset', bottom: true, borderColor: Colors.grey),
+          ],
+        ),
+      ),
+    ),
   );
 }
