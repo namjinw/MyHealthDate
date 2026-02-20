@@ -1,0 +1,41 @@
+name: my_health_date
+description: "A new Flutter project."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.2.3
+  http: ^1.6.0
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  assets:
+    - assets/images/
+  fonts:
+    - family: NotoSansKR
+      fonts:
+        - asset: fonts/NotoSansKR-Regular.ttf
+          weight: 400
+        - asset: fonts/NotoSansKR-Medium.ttf
+          weight: 500
+        - asset: fonts/NotoSansKR-Bold.ttf
+          weight: 700
+        - asset: fonts/NotoSansKR-ExtraBold.ttf
+          weight: 800
+
+  uses-material-design: true
