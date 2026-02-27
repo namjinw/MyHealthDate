@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:my_health_date/controller/user.dart';
+import 'package:my_health_date/page/home.dart';
+import 'package:my_health_date/page/sign_up.dart';
 import 'package:my_health_date/utils.dart';
 
 class Sign_inPage extends StatefulWidget {
@@ -10,22 +13,50 @@ class Sign_inPage extends StatefulWidget {
 }
 
 class _Sign_inPageState extends State<Sign_inPage> {
-  final GlobalKey<FormState> _key = GlobalKey<FormState>();
   final TextEditingController username = TextEditingController();
   final TextEditingController password = TextEditingController();
+
+  Future<void> login() async {
+    if (username.text == null || username.text.isEmpty) {
+      ShowSnackerBar(context, Icons.error_outline, '유저 이름을 공백으로 제출하면 안됩니다.');
+      return;
+    }
+    if (username.text.length < 3) {
+      ShowSnackerBar(context, Icons.error_outline, '유저 이름은 4자 이상이여야 합니다.');
+      return;
+    }
+    if (password.text.length < 3) {
+      ShowSnackerBar(context, Icons.error_outline, '비밀번호는 4자 이상이여야 합니다.');
+      return;
+    }
+
+    final response = await UserController.SignIn(username.text, password.text);
+
+    if (response != null && response.success) {
+      UserController.user = response;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
+        backgroundColor: background,
         resizeToAvoidBottomInset: false,
         appBar: appBar(),
         body: SizedBox.expand(
           child: Stack(
             children: [
               SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
@@ -71,7 +102,7 @@ class _Sign_inPageState extends State<Sign_inPage> {
           const SizedBox(height: 10),
           input(Icons.lock, 'Password', password, password: true),
           const SizedBox(height: 20),
-          button(() {}, Color(0xff393838), 'Sign in', radius: 12),
+          button(login, Color(0xff393838), 'Sign in', radius: 12),
         ],
       ),
     ),
@@ -111,22 +142,31 @@ class _Sign_inPageState extends State<Sign_inPage> {
     ),
   );
 
-  Widget button(VoidCallback ontap, color, text, {borderColor = Colors.transparent, double radius = 0, bottom = false}) => GestureDetector(
+  Widget button(
+    VoidCallback ontap,
+    color,
+    text, {
+    borderColor = Colors.transparent,
+    double radius = 0,
+    bottom = false,
+  }) => GestureDetector(
     onTap: ontap,
     child: Container(
       width: sizew(context),
       height: bottom == true ? 45 : 50,
       decoration: BoxDecoration(
         color: color,
-        boxShadow: bottom == true ? [] : [
-          BoxShadow(
-            color: Colors.black.withAlpha(90),
-            blurRadius: 3,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        boxShadow: bottom == true
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withAlpha(90),
+                  blurRadius: 3,
+                  offset: const Offset(0, 3),
+                ),
+              ],
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(width: 1, color: borderColor)
+        border: Border.all(width: 1, color: borderColor),
       ),
       child: Center(
         child: Text(
@@ -168,15 +208,37 @@ class _Sign_inPageState extends State<Sign_inPage> {
     bottom: 0,
     child: Container(
       height: 220,
-      decoration: BoxDecoration(color: inputColor),
+      decoration: BoxDecoration(color: bottomMenuColor),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 50.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            button(() {}, Colors.black, 'Sign Up', bottom: true),
+            button(
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => Sign_upPage()),
+                );
+              },
+              Colors.black,
+              'Sign Up',
+              bottom: true,
+            ),
             const SizedBox(height: 20),
-            button(() {}, background, 'Password Reset', bottom: true, borderColor: Colors.grey),
+            button(
+              () {
+                ShowSnackerBar(
+                  context,
+                  Icons.add_circle_outline,
+                  '아직 준비 중인 기능입니다!',
+                );
+              },
+              background,
+              'Password Reset',
+              bottom: true,
+              borderColor: Colors.grey,
+            ),
           ],
         ),
       ),
