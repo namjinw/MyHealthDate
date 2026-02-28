@@ -1,5 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional
+from datetime import datetime
+
+
+def today() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
 
 
 class SigninRequest(BaseModel):
@@ -19,13 +24,16 @@ class ProfileUpdateRequest(BaseModel):
 
 class StepInsertRequest(BaseModel):
     stepCount: int
+    date: Optional[str] = None          # YYYY-MM-DD, 없으면 서버 오늘 날짜
 
 
 class WaterInsertRequest(BaseModel):
-    water: int  # 100 or 250
+    water: int                           # 100 or 250
+    date: Optional[str] = None
 
 
 class AlarmInsertRequest(BaseModel):
-    alarmKndCd: Optional[str] = None   # F, W, E
+    alarmKndCd: Optional[str] = None    # F, W, E
     hour: int
     mnt: int
+    date: Optional[str] = None

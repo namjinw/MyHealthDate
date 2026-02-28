@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from jose import jwt
 from datetime import datetime, timedelta
 from typing import Optional
@@ -82,6 +83,13 @@ def today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
+def resolve_date(date_str: Optional[str]) -> str:
+    """클라이언트가 date를 보내면 그 값을, 없으면 서버 오늘 날짜를 반환."""
+    if date_str:
+        return date_str
+    return today()
+
+
 # ─── 100. Authentication ─────────────────────────────────────────────────────
 
 @app.post("/api/authenticate/signup", tags=["Authentication"])
@@ -124,7 +132,6 @@ def signin(req: schemas.SigninRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/authenticate/signout", tags=["Authentication"])
 def signout(user: models.User = Depends(get_current_user)):
-    # 새 토큰 발급 → 기존 토큰 무효화 개념
     new_tkn = create_token(user.mber_id)
     return ok({"tkn": new_tkn})
 
@@ -176,28 +183,30 @@ def update_profile(
 def home(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     td = today()
 
-    # 오늘 걸음 합계
+    # 오늘 걸음 합계 (rcord_dt 날짜 단위 정확 비교)
     steps_today = db.query(models.Step).filter(
         models.Step.mber_id == user.mber_id,
-        models.Step.rcord_dt == td
+        func.date(models.Step.rcord_dt) == td
     ).all()
     total_steps = sum(s.step_cnt for s in steps_today)
 
     # 오늘 심박수 목록
     hearts = db.query(models.HeartRate).filter(
         models.HeartRate.mber_id == user.mber_id,
-        models.HeartRate.rcord_dt == td
-    ).all()
+        func.date(models.HeartRate.rcord_dt) == td
+    ).order_by(models.HeartRate.regist_dt).all()
     heart_list = [{"heartUid": h.heart_uid, "heartRate": h.heart_rate,
                    "rcordDt": h.rcord_dt, "mberId": h.mber_id,
                    "registDt": h.regist_dt.strftime("%Y-%m-%d %H:%M:%S")} for h in hearts]
     last_heart = hearts[-1].heart_rate if hearts else 0
+    min_heart = min((h.heart_rate for h in hearts), default=0)
+    max_heart = max((h.heart_rate for h in hearts), default=0)
 
     # 오늘 음식 목록
     foods = db.query(models.Food).filter(
         models.Food.mber_id == user.mber_id,
-        models.Food.rcord_dt == td
-    ).all()
+        func.date(models.Food.rcord_dt) == td
+    ).order_by(models.Food.regist_dt).all()
     food_list = [{"foodUid": f.food_uid, "fileNm": f.file_nm, "fileSize": f.file_size,
                   "maskNm": f.mask_nm, "rcordDt": f.rcord_dt, "foodKndCd": f.food_knd_cd,
                   "mberId": f.mber_id,
@@ -206,7 +215,7 @@ def home(user: models.User = Depends(get_current_user), db: Session = Depends(ge
     # 오늘 수분 합계
     waters_today = db.query(models.Water).filter(
         models.Water.mber_id == user.mber_id,
-        models.Water.rcord_dt == td
+        func.date(models.Water.rcord_dt) == td
     ).all()
     total_water = sum(w.water_cnt for w in waters_today)
 
@@ -224,6 +233,8 @@ def home(user: models.User = Depends(get_current_user), db: Session = Depends(ge
         "stepCount": total_steps,
         "heartRateList": heart_list,
         "lastHeartRate": last_heart,
+        "minHeartRate": min_heart,
+        "maxHeartRate": max_heart,
         "water": total_water,
     })
 
@@ -236,7 +247,8 @@ def insert_step(
     user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    step = models.Step(mber_id=user.mber_id, step_cnt=req.stepCount, rcord_dt=today())
+    rcord_dt = resolve_date(req.date)
+    step = models.Step(mber_id=user.mber_id, step_cnt=req.stepCount, rcord_dt=rcord_dt)
     db.add(step)
     db.commit()
     return ok()
@@ -244,9 +256,10 @@ def insert_step(
 
 @app.get("/api/step", tags=["Step"])
 def get_today_step(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    td = today()
     steps = db.query(models.Step).filter(
         models.Step.mber_id == user.mber_id,
-        models.Step.rcord_dt == today()
+        func.date(models.Step.rcord_dt) == td
     ).all()
     total = sum(s.step_cnt for s in steps)
     return ok({"step": total})
@@ -260,20 +273,35 @@ def get_step_list(
 ):
     steps = db.query(models.Step).filter(
         models.Step.mber_id == user.mber_id,
-        models.Step.rcord_dt == date
+        func.date(models.Step.rcord_dt) == date
     ).all()
     lst = [{"stepUid": s.step_uid, "rcordDt": s.rcord_dt, "mberId": s.mber_id,
             "registDt": s.regist_dt.strftime("%Y-%m-%d %H:%M:%S"), "stepCnt": s.step_cnt}
            for s in steps]
-    return ok({"list": lst})
+    total = sum(s.step_cnt for s in steps)
+    return ok({"list": lst, "totalStep": total})
 
 
 # ─── 500. Heart Rate ─────────────────────────────────────────────────────────
 
 @app.post("/api/heart", tags=["Heart Rate"])
-def measure_heart(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def measure_heart(
+    request: Request,
+    user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Body에 date가 있으면 사용 (JSON optional)
+    rcord_dt = today()
+    try:
+        import asyncio
+        body = asyncio.get_event_loop().run_until_complete(request.json())
+        if isinstance(body, dict) and body.get("date"):
+            rcord_dt = body["date"]
+    except Exception:
+        pass
+
     rate = random.randint(0, 200)
-    heart = models.HeartRate(mber_id=user.mber_id, heart_rate=rate, rcord_dt=today())
+    heart = models.HeartRate(mber_id=user.mber_id, heart_rate=rate, rcord_dt=rcord_dt)
     db.add(heart)
     db.commit()
     db.refresh(heart)
@@ -282,15 +310,18 @@ def measure_heart(user: models.User = Depends(get_current_user), db: Session = D
 
 @app.get("/api/heart", tags=["Heart Rate"])
 def get_today_heart(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    td = today()
     hearts = db.query(models.HeartRate).filter(
         models.HeartRate.mber_id == user.mber_id,
-        models.HeartRate.rcord_dt == today()
+        func.date(models.HeartRate.rcord_dt) == td
     ).order_by(models.HeartRate.regist_dt).all()
     lst = [{"heartUid": h.heart_uid, "heartRate": h.heart_rate, "rcordDt": h.rcord_dt,
             "mberId": h.mber_id, "registDt": h.regist_dt.strftime("%Y-%m-%d %H:%M:%S")}
            for h in hearts]
     last = hearts[-1].heart_rate if hearts else 0
-    return ok({"list": lst, "lastHeartRate": last})
+    min_rate = min((h.heart_rate for h in hearts), default=0)
+    max_rate = max((h.heart_rate for h in hearts), default=0)
+    return ok({"list": lst, "lastHeartRate": last, "minHeartRate": min_rate, "maxHeartRate": max_rate})
 
 
 @app.get("/api/heart/{date}", tags=["Heart Rate"])
@@ -301,12 +332,14 @@ def get_heart_list(
 ):
     hearts = db.query(models.HeartRate).filter(
         models.HeartRate.mber_id == user.mber_id,
-        models.HeartRate.rcord_dt == date
+        func.date(models.HeartRate.rcord_dt) == date
     ).order_by(models.HeartRate.regist_dt).all()
     lst = [{"heartUid": h.heart_uid, "heartRate": h.heart_rate, "rcordDt": h.rcord_dt,
             "mberId": h.mber_id, "registDt": h.regist_dt.strftime("%Y-%m-%d %H:%M:%S")}
            for h in hearts]
-    return ok({"list": lst})
+    min_rate = min((h.heart_rate for h in hearts), default=0)
+    max_rate = max((h.heart_rate for h in hearts), default=0)
+    return ok({"list": lst, "minHeartRate": min_rate, "maxHeartRate": max_rate})
 
 
 # ─── 600. Food ───────────────────────────────────────────────────────────────
@@ -314,10 +347,12 @@ def get_heart_list(
 @app.post("/api/food", tags=["Food"])
 async def insert_food(
     foodKndCd: str = Form(...),
+    date: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    rcord_dt = resolve_date(date)
     file_nm = None
     mask_nm = None
     file_size = None
@@ -339,7 +374,7 @@ async def insert_food(
         file_nm=file_nm,
         mask_nm=mask_nm,
         file_size=file_size,
-        rcord_dt=today()
+        rcord_dt=rcord_dt
     )
     db.add(food)
     db.commit()
@@ -348,18 +383,32 @@ async def insert_food(
 
 @app.get("/api/food/{date}", tags=["Food"])
 def get_food_list(
-    date: str = Path(...),
-    user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+        date: str = Path(...),
+        user: models.User = Depends(get_current_user),
+        db: Session = Depends(get_db)
 ):
     foods = db.query(models.Food).filter(
         models.Food.mber_id == user.mber_id,
-        models.Food.rcord_dt == date
+        models.Food.rcord_dt.like(f"{date}%")
     ).order_by(models.Food.regist_dt).all()
-    lst = [{"foodUid": f.food_uid, "fileNm": f.file_nm, "fileSize": f.file_size,
-            "maskNm": f.mask_nm, "rcordDt": f.rcord_dt, "foodKndCd": f.food_knd_cd,
-            "mberId": f.mber_id, "registDt": f.regist_dt.strftime("%Y-%m-%d %H:%M:%S")}
-           for f in foods]
+
+    lst = []
+    for f in foods:
+        formatted_dt = f.rcord_dt
+        if hasattr(f.rcord_dt, 'strftime'):
+            formatted_dt = f.rcord_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        lst.append({
+            "foodUid": f.food_uid,
+            "fileNm": f.file_nm,
+            "fileSize": f.file_size,
+            "maskNm": f.mask_nm,
+            "rcordDt": f.rcord_dt,
+            "foodKndCd": f.food_knd_cd,
+            "mberId": f.mber_id,
+            "registDt": formatted_dt
+        })
+
     return ok({"list": lst, "food_image_path_prefix": FOOD_IMAGE_PATH_PREFIX})
 
 
@@ -376,7 +425,6 @@ def delete_food(
     if not food:
         return err("해당 음식 데이터를 찾을 수 없습니다.", "E004")
 
-    # 파일도 삭제
     if food.mask_nm:
         path = os.path.join(UPLOAD_DIR, food.mask_nm)
         if os.path.exists(path):
@@ -398,7 +446,8 @@ def insert_water(
     if req.water not in (100, 250):
         return err("water 값은 100 또는 250이어야 합니다.", "E002")
 
-    water = models.Water(mber_id=user.mber_id, water_cnt=req.water, rcord_dt=today())
+    rcord_dt = resolve_date(req.date)
+    water = models.Water(mber_id=user.mber_id, water_cnt=req.water, rcord_dt=rcord_dt)
     db.add(water)
     db.commit()
     return ok()
@@ -406,9 +455,10 @@ def insert_water(
 
 @app.get("/api/water", tags=["Water"])
 def get_today_water(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    td = today()
     waters = db.query(models.Water).filter(
         models.Water.mber_id == user.mber_id,
-        models.Water.rcord_dt == today()
+        func.date(models.Water.rcord_dt) == td
     ).all()
     total = sum(w.water_cnt for w in waters)
     return ok({"water": total})
@@ -422,12 +472,13 @@ def get_water_list(
 ):
     waters = db.query(models.Water).filter(
         models.Water.mber_id == user.mber_id,
-        models.Water.rcord_dt == date
+        func.date(models.Water.rcord_dt) == date
     ).order_by(models.Water.regist_dt).all()
     lst = [{"waterUid": w.water_uid, "rcordDt": w.rcord_dt, "mberId": w.mber_id,
             "registDt": w.regist_dt.strftime("%Y-%m-%d %H:%M:%S"), "waterCnt": w.water_cnt}
            for w in waters]
-    return ok({"list": lst})
+    total = sum(w.water_cnt for w in waters)
+    return ok({"list": lst, "totalWater": total})
 
 
 # ─── 800. Alarm ──────────────────────────────────────────────────────────────
