@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:my_health_date/controller/user.dart';
-import 'package:my_health_date/page/home.dart';
+import 'package:my_health_date/controller/info.dart';
 import 'package:my_health_date/page/sign_up.dart';
-import 'package:my_health_date/utils.dart';
+
+import '../controller/user.dart';
+import '../utils.dart';
+import 'menu.dart';
 
 class Sign_inPage extends StatefulWidget {
   const Sign_inPage({super.key});
@@ -19,26 +20,30 @@ class _Sign_inPageState extends State<Sign_inPage> {
   Future<void> login() async {
     if (username.text == null || username.text.isEmpty) {
       ShowSnackerBar(context, Icons.error_outline, '유저 이름을 공백으로 제출하면 안됩니다.');
-      return;
-    }
-    if (username.text.length < 3) {
+    } else if (username.text.length < 3) {
       ShowSnackerBar(context, Icons.error_outline, '유저 이름은 4자 이상이여야 합니다.');
-      return;
     }
-    if (password.text.length < 3) {
+    else if (password.text.length < 3) {
       ShowSnackerBar(context, Icons.error_outline, '비밀번호는 4자 이상이여야 합니다.');
-      return;
-    }
+    } else {
 
-    final response = await UserController.SignIn(username.text, password.text);
+      final response = await UserController.SignIn(username.text, password.text);
 
-    if (response != null && response.success) {
-      UserController.user = response;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => HomePage()),
-        (route) => false,
-      );
+      if (response != null && response.success) {
+
+
+        UserController.user = response;
+        final DateTime now = DateTime.now();
+        final String today = '${now.year}-${now.month}-${now.day}';
+
+        await InfoController.infoInit(response.tkn, today);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => MenuPage()),
+              (route) => false,
+        );
+      }
+
     }
   }
 
@@ -218,7 +223,8 @@ class _Sign_inPageState extends State<Sign_inPage> {
               () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => Sign_upPage()),
+                  MaterialPageRoute(builder: (context) =>
+                      Sign_upPage()),
                 );
               },
               Colors.black,

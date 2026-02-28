@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="16" viewBox="0 0 300 16">
+  <defs>
+    <linearGradient id="linear-gradient" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#069cf5"/>
+      <stop offset="0.167" stop-color="#5bc307"/>
+      <stop offset="0.431" stop-color="#f6e100"/>
+      <stop offset="0.615" stop-color="#f78100"/>
+      <stop offset="0.787" stop-color="#f78100"/>
+      <stop offset="1" stop-color="#f60000"/>
+    </linearGradient>
+  </defs>
+  <rect id="사각형_1471" data-name="사각형 1471" width="16" height="300" rx="8" transform="translate(0 16) rotate(-90)" fill="url(#linear-gradient)"/>
+</svg>
