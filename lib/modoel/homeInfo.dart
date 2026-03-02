@@ -3,6 +3,8 @@ class HomeInfo {
   final String sexdstn;
   final double height;
   final double weight;
+  final int stepTarget;
+  final int waterTarget;
   final int totalStep;
   final int minHeartRate;
   final int maxHeartRate;
@@ -14,6 +16,8 @@ class HomeInfo {
     required this.sexdstn,
     required this.height,
     required this.weight,
+    required this.stepTarget,
+    required this.waterTarget,
     required this.totalStep,
     required this.minHeartRate,
     required this.maxHeartRate,
@@ -27,6 +31,8 @@ class HomeInfo {
       sexdstn: '',
       height: 0.0,
       weight: 0.0,
+      stepTarget: 0,
+      waterTarget: 0,
       totalStep: 0,
       minHeartRate: 0,
       maxHeartRate: 0,
@@ -41,6 +47,8 @@ class HomeInfo {
       sexdstn: json['sexdstn'],
       height: json['height'],
       weight: json['weight'],
+      stepTarget: json['stepTarget'],
+      waterTarget: json['waterTarget'],
       totalStep: json['totalStep'],
       minHeartRate: json['minHeartRate'],
       maxHeartRate: json['maxHeartRate'],

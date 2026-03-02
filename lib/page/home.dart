@@ -16,42 +16,21 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-
     final double h = info.height / 100;
     bmi = info.weight / (h * h);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
-      child: Column(children: [profile()]),
+      child: Column(children: [profile(), const SizedBox(height: 15,), steps()]),
     );
   }
 
-  Widget profile() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'Hello ${info.mberNm},',
-        style: TextStyle(
-          fontSize: 24,
-          fontFamily: fonts,
-          fontWeight: FontWeight.w400,
-        ),
-      ),
-      const SizedBox(height: 10),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: Container(
-          width: sizew(context),
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-          height: 125,
-          decoration: BoxDecoration(
-            color: boxColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: profileInfo(),
-        ),
-      ),
-    ],
+  Widget profile() => baseWidget(
+      'Hello ${info.mberNm},',
+      profileInfo(),
+      height: 125,
+      fontSize: 24,
+      fontWeight: FontWeight.w400
   );
 
   Widget profileInfo() {
@@ -125,24 +104,34 @@ class _HomePageState extends State<HomePage> {
     ],
   );
 
-  Widget bmiGraph() => baseGraph(-4, bmi.toStringAsFixed(2), 20);
+  Widget bmiGraph() {
+    final gauge = ((bmi - 10) / (60 - 10)).clamp(0.0, 1.0);
+    print(gauge);
 
-  Widget baseGraph(double top, text, double left) => Stack(
-    children: [
-      graphBody(),
-      Positioned(
-        left: left,
-        top: 0,
-        child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final position = gauge * maxWidth;
+
+        return Stack(
           children: [
-            Container(width: 1, height: 15, color: background),
-            const SizedBox(height: 10),
-            baseGraphShowGauge(top, text),
+            graphBody(),
+            Positioned(
+              left: position,
+              top: 0,
+              child: Column(
+                children: [
+                  Container(width: 2, height: 15, color: background),
+                  const SizedBox(height: 10),
+                  baseGraphShowGauge(-5, bmi.toStringAsFixed(2)),
+                ],
+              ),
+            ),
           ],
-        ),
-      ),
-    ],
-  );
+        );
+      },
+    );
+  }
 
   Widget graphBody() => Container(
     width: sizew(context) * 0.6,
@@ -162,6 +151,37 @@ class _HomePageState extends State<HomePage> {
       borderRadius: BorderRadius.circular(15),
     ),
   );
+
+  Widget steps() => baseWidget('Steps', Column(children: []));
+
+  Widget baseWidget(text, child, {double height = 100, double fontSize = 26, fontWeight = FontWeight.w500}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontFamily: fonts,
+              fontWeight: fontWeight,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Container(
+              width: sizew(context),
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              height: height,
+              decoration: BoxDecoration(
+                color: boxColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: child,
+            ),
+          ),
+        ],
+      );
 
   Widget baseGraphShowGauge(double top, text) => Stack(
     clipBehavior: Clip.none,

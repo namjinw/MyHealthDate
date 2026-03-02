@@ -20,6 +20,8 @@ class InfoController {
       sexdstn: profile.sexdstn,
       height: profile.height,
       weight: profile.weight,
+      waterTarget: profile.waterTarget,
+      stepTarget: profile.stepTarget,
       totalStep: steps,
       minHeartRate: heartRate['min']!,
       maxHeartRate: heartRate['max']!,
